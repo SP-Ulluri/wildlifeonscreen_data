@@ -3,3 +3,4 @@ streamlit
 google-auth
 gsheetsdb
 pyparsing
+altair

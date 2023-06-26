@@ -2,7 +2,7 @@ import streamlit as st
 from google.oauth2 import service_account
 from gsheetsdb import connect
 import pandas as pd
-
+import altair as alt
 
 @st.cache_resource(ttl=600)
 def get_data(sheet_url):
@@ -47,13 +47,20 @@ unique_countries = sorted(merged_df["Country"].dropna().unique())
 unique_families = sorted(merged_df["Family"].dropna().unique())
 # print(unique_families)
 
+# st.button('Hit me')
+#
+# st.radio('Radio', [1,2,3])
+#
+# st.select_slider('Slide to select', options=[1 ,'2'])
+#
+# user_text = st.text_input('Ask a question about the data')
 
 countries_selection = st.multiselect(
-    "Choose countries", unique_countries, ["Kenya"]
+    "Choose countries", unique_countries, []
 )
 
 families_selection = st.multiselect(
-    "Choose families", unique_families, ["Felidae"]
+    "Choose families", unique_families, ["Felidae", "Canidae", "Hominidae"]
 )
 
 # Create filter conditions based on user selections
@@ -63,9 +70,18 @@ family_filter = (merged_df["Family"].isin(families_selection)) | (len(families_s
 # Apply filters to the DataFrame
 filtered_df = merged_df[country_filter & family_filter]
 
+columns = ["Animal_name", "Binomial_name", "IUCN_status"]
+if st.checkbox('Last Appeared In'):
+    columns.append("Last Appeared In")
+
+if st.checkbox('Last Appeared Date'):
+    columns.append("Last Appeared Date")
 
 # Display the filtered DataFrame as a table
-filtered_df_unique = filtered_df[["Family", "Animal_name", "Binomial_name", "IUCN_status", "Last Appeared In", "Last Appeared Date"]].drop_duplicates().sort_values(["Family", "Binomial_name"])
+if len(families_selection) == 1:
+    filtered_df_unique = filtered_df[[columns]].drop_duplicates().sort_values(["Binomial_name"])
+else:
+    filtered_df_unique = filtered_df[["Family"] + columns].drop_duplicates().sort_values(["Family", "Binomial_name"])
 
 filtered_df_unique = filtered_df_unique.reset_index(drop=True)
 filtered_df_unique.index = filtered_df_unique.index + 1
@@ -74,3 +90,43 @@ filtered_df_unique.index = filtered_df_unique.index + 1
 
 # Display the DataFrame with interactive sorting enabled
 sorted_df = st.dataframe(filtered_df_unique)
+
+df2 = filtered_df.groupby("IUCN_status").agg({
+    "Binomial_name": "nunique"
+}).reset_index()
+df2.columns = ["IUCN_status", "Unique_BinomialName_Count"]
+
+status_order = ["LC", "NT", "VU", "EN", "CR", "EX", "DO", "DD", "NE"]
+
+status_colours = {
+    "LC": "#63c5ff",
+    "NT": "#7af054",
+    "VU": "#e5cb50",
+    "EN": "#ffa759",
+    "CR": "#f65f54",
+    "DO": "#9C826C",
+    "DD": "#b9b9b9",
+    "NE": "#b9b9b9",
+    "EX": "#363636"
+}
+
+status_colour_borders = {
+    "LC": "#2db6ff",
+    "NT": "#3eb800",
+    "VU": "#d1a300",
+    "EN": "#cd8900",
+    "CR": "#b3310b",
+    "DO": "#85552c",
+    "DD": "#979797",
+    "NE": "#979797",
+    "EX": "#ff4647"
+}
+
+status_chart = alt.Chart(df2).mark_bar(strokeWidth=2.5).encode(
+    y=alt.Y('IUCN_status', axis=alt.Axis(title='IUCN status'), sort=status_order),
+    x=alt.X('Unique_BinomialName_Count', axis=alt.Axis(title='# Species', labelOverlap=True, tickMinStep=1)),
+    color=alt.Color('IUCN_status', scale=alt.Scale(domain=list(status_colours.keys()), range=list(status_colours.values())), legend=alt.Legend(title='', labelLimit=0, symbolLimit=0, titleLimit=0, values=list(set(df2["IUCN_status"])))),
+    stroke=alt.Stroke('IUCN_status', scale=alt.Scale(domain=list(status_colour_borders.keys()), range=list(status_colour_borders.values()))),
+)
+
+st.altair_chart(status_chart)
