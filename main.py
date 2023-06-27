@@ -3,8 +3,6 @@ from google.oauth2 import service_account
 from gsheetsdb import connect
 import pandas as pd
 import altair as alt
-from datetime import date
-import geopandas as gpd
 from vega_datasets import data
 import iso3166
 
