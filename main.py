@@ -122,24 +122,43 @@ if st.sidebar.checkbox('First Seen'):
 if st.sidebar.checkbox('Last Seen'):
     columns.append("Last Seen")
 
-user_sort_selection = st.sidebar.radio(label="Sort by column:", options=("Alphabetical",
-                  "Scientific name",
-                  "IUCN status",
-                  "# Times Featured"))
+user_sort_selection = st.sidebar.radio(label="Sort by column:",
+                                       options=("Alphabetical",
+                                                "Scientific name",
+                                                "IUCN status",
+                                                "# Times Featured"))
 
-sort_dict = {"Alphabetical": "Animal",
-             "Scientific name": "Scientific name",
-             "IUCN status": "Species_status_original",
-             "# Times Featured": "# Times Featured"}
+sort_dict = {
+    "Alphabetical": ["Animal"],
+    "Scientific name": ["Scientific name"],
+    "IUCN status": ["Species_status_original", "Animal"],
+    "# Times Featured": ["# Times Featured", "Animal"]
+}
+
+ascending_order = {
+    "Alphabetical": True,
+    "Scientific name": True,
+    "IUCN status": True,
+    "# Times Featured": False
+}
 
 if len(families_selection) == 1:
-    filtered_df_unique = filtered_df[columns + ["Species_status_original"]].drop_duplicates().sort_values(by=[sort_dict.get(user_sort_selection)],
-                                                                            key=lambda x: pd.Categorical(x, categories=status_order, ordered=True) if user_sort_selection=="IUCN status" else None,
-                                                                            ascending=False if user_sort_selection=="# Times Featured" else True)
+    filtered_df_prep = filtered_df[columns + ["Species_status_original"]].drop_duplicates()
 else:
-    filtered_df_unique = filtered_df[["Family"] + columns + ["Species_status_original"]].drop_duplicates().sort_values(by=[sort_dict.get(user_sort_selection)],
-                                                                                         key=lambda x: pd.Categorical(x, categories=status_order, ordered=True) if user_sort_selection=="IUCN status" else None,
-                                                                                         ascending=False if user_sort_selection=="# Times Featured" else True)
+    filtered_df_prep = filtered_df[["Family"] + columns + ["Species_status_original"]].drop_duplicates()
+
+sort_columns = sort_dict.get(user_sort_selection, [])
+if user_sort_selection == "IUCN status":
+    filtered_df_unique = filtered_df_prep.sort_values(
+        by=sort_columns,
+        key=lambda x: pd.Categorical(x, categories=status_order, ordered=True),
+        ascending=True
+    )
+else:
+    filtered_df_unique = filtered_df_prep.sort_values(
+        by=sort_columns,
+        ascending=ascending_order.get(user_sort_selection, True)
+    )
 
 filtered_df_unique = filtered_df_unique[columns]
 filtered_df_unique = filtered_df_unique.reset_index(drop=True)
