@@ -4,3 +4,6 @@ google-auth
 gsheetsdb
 pyparsing
 altair
+geopandas
+vega-datasets
+iso3166

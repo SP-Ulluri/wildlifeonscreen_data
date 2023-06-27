@@ -4,6 +4,9 @@ from gsheetsdb import connect
 import pandas as pd
 import altair as alt
 from datetime import date
+import geopandas as gpd
+from vega_datasets import data
+import iso3166
 
 with open("style.css") as css_file:
     st.markdown(f'<style>{css_file.read()}</style>', unsafe_allow_html=True)
@@ -33,57 +36,63 @@ def get_data(sheet_url):
 sheet_url = st.secrets["private_gsheets_url"]
 
 df = get_data(sheet_url)
-print(df.columns)
 
 df["Binomial_name"] = df["Scientific_name"].str.split().str[:2].str.join(" ")
 
-# Sort the DataFrame by "Times_Appeared" column in descending order
+# print(df["Country"].unique())
+
+# Sort the DataFrame by "Air_Date" column in descending order
 df_sorted = df.sort_values("Air_Date", ascending=False).copy()
 
 # Group the DataFrame by "Binomial_name" and select the first row for each group (highest "Times_Appeared" value)
-last_appearance = df_sorted[['Binomial_name', 'Air_Date', 'Show', 'Episode', 'Times_Appeared']].groupby("Binomial_name").first()
+last_appearance = df_sorted.groupby("Binomial_name").first()
 
 # Group the DataFrame by "Binomial_name" and select the first row for each group (lowest "Times_Appeared" value)
-first_appearance = df_sorted[['Binomial_name', 'Air_Date', 'Show', 'Episode', 'Times_Appeared']].groupby("Binomial_name").last()
+first_appearance = df_sorted.groupby("Binomial_name").last()
 
 # Merge the last appearance information back into the original DataFrame
-merged_df = pd.merge(df, last_appearance[["Show", "Episode", "Air_Date", "Times_Appeared"]], on="Binomial_name", how="left").copy()
+merged_df = pd.merge(df, last_appearance[["Show", "Episode", "Air_Date", "Times_Appeared"]],
+                     on="Binomial_name", how="left").copy()
+merged_df.rename(columns={"Show_y": "Last Appeared In",
+                          "Episode_y": "Last Appeared In Episode",
+                          "Air_Date_y": "Last Appeared Date",
+                          "Times_Appeared_y": "# Times Featured"}, inplace=True)
 
-merged_df = merged_df.rename(columns={"Show_y": "Last Appeared In",
-                                      "Episode_y": "Last Appeared In Episode",
-                                      "Air_Date_y": "Last Appeared Date",
-                                      "Times_Appeared_y": "# Times Featured"})
+# Merge the first appearance information back into the original DataFrame
+merged_df = pd.merge(merged_df, first_appearance[["Show", "Episode", "Air_Date"]],
+                     on="Binomial_name", how="left").copy()
+merged_df.rename(columns={"Show": "First Appeared In",
+                          "Episode": "First Appeared In Episode",
+                          "Air_Date": "First Appeared Date"}, inplace=True)
 
 
-print(merged_df.columns)
+# Filter based on user selections
+unique_continents = sorted(merged_df["Continent"].dropna().unique())
+unique_countries = sorted(merged_df["Country"].dropna().unique())
+unique_classes = sorted(merged_df["Class"].dropna().unique())
+unique_families = sorted(merged_df["Family"].dropna().unique())
 
-# Merge the last appearance information back into the original DataFrame
-merged_df_2 = pd.merge(merged_df, first_appearance[["Show", "Episode", "Air_Date"]], on="Binomial_name", how="left").copy()
+# Apply continent filter to country selection options
+continents_selection = st.sidebar.multiselect("Filter by continent", unique_continents, [])
+if continents_selection:
+    unique_countries = sorted(merged_df.loc[merged_df["Continent"].isin(continents_selection), "Country"].dropna().unique())
 
-merged_df_2 = merged_df_2.rename(columns={"Show": "First Appeared In",
-                                      "Episode": "First Appeared In Episode",
-                                      "Air_Date": "First Appeared Date"})
+countries_selection = st.sidebar.multiselect("Filter by country", unique_countries, [])
 
-print(merged_df_2.columns)
+# Apply class filter to family selection options
+class_selection = st.sidebar.multiselect("Filter by taxon classes", unique_classes, ["Mammalia"])
+if class_selection:
+    unique_families = sorted(merged_df.loc[merged_df["Class"].isin(class_selection), "Family"].dropna().unique())
 
-unique_countries = sorted(merged_df_2["Country"].dropna().unique())
-
-unique_families = sorted(merged_df_2["Family"].dropna().unique())
-
-countries_selection = st.sidebar.multiselect(
-    "Choose countries", unique_countries, []
-)
-
-families_selection = st.sidebar.multiselect(
-    "Choose families", unique_families, ["Felidae", "Hominidae"]
-)
+families_selection = st.sidebar.multiselect("Filter by taxon families", unique_families, [])
 
 # Create filter conditions based on user selections
-country_filter = (merged_df_2["Country"].isin(countries_selection)) | (len(countries_selection) == 0)
-family_filter = (merged_df_2["Family"].isin(families_selection)) | (len(families_selection) == 0)
+continents_filter = merged_df["Continent"].isin(continents_selection) | (len(continents_selection) == 0)
+countries_filter = (merged_df["Country"].isin(countries_selection)) | (len(countries_selection) == 0)
+class_filter = (merged_df["Class"].isin(class_selection)) | (len(class_selection) == 0)
+family_filter = (merged_df["Family"].isin(families_selection)) | (len(families_selection) == 0)
 
-# Apply filters to the DataFrame
-filtered_df = merged_df_2[country_filter & family_filter]
+filtered_df = merged_df[continents_filter & countries_filter & class_filter & family_filter].copy()
 
 status_css = {
     'LC': 'background-color: #4fc1ff; border: 2px solid #3a95d1; color: #ffffff; text-shadow: 0px 0px 1px #3283b5;',
@@ -93,40 +102,37 @@ status_css = {
     'CR': 'background-color: #f03022; border: 2px solid #a8482b; color: #ffffff; text-shadow: 0px 0px 1px #7d3a25;',
     'NE': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
     'DD': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
-    'DO': 'background-color: #9C826C; border: 2px solid #85552c; color: #ffffff; text-shadow: 0px 0px 2px #000000;',
+    'DO': 'background-color: #9C826C; border: 2px solid #85552c; color: #ffffff; text-shadow: 0px 0px 2px #444444;',
     'EX': 'background-color: #363636; border: 2px solid #ff4647; color: #ffffff; text-shadow: 0px 0px 2px #000000;',
 }
 
-filtered_df['IUCN status'] = filtered_df['Species_status_original'].apply(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "-")
-filtered_df['Scientific name'] = filtered_df['Binomial_name'].apply(lambda x: f'<i>{x}</i>' if x is not None else "-")
+filtered_df = filtered_df[~filtered_df["Animal_name_original"].apply(lambda x: isinstance(x, str) and "sp." in x)]
+filtered_df['IUCN status'] = filtered_df['Species_status_original'].map(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "-")
+filtered_df['Scientific name'] = filtered_df['Binomial_name'].map(lambda x: f'<i>{x}</i>' if x is not None else "-")
 filtered_df['Animal'] = filtered_df['Animal_name_original']
 filtered_df['# Times Featured'] = pd.to_numeric(filtered_df['# Times Featured'], errors='coerce').fillna(0).astype(int)
 filtered_df['Last Seen'] = filtered_df.apply(
-    lambda row: f"{row['Last Appeared In']} ({row['Last Appeared Date'].strftime('%b %Y')})"
-        if not pd.isnull(row['Last Appeared Date'])
-        else "-",
+    lambda row: f"{row['Last Appeared In']} ({row['Last Appeared Date'].strftime('%Y')})"
+    if not pd.isnull(row['Last Appeared Date'])
+    else "-",
     axis=1
 )
 filtered_df['First Seen'] = filtered_df.apply(
-    lambda row: f"{row['First Appeared In']} ({row['First Appeared Date'].strftime('%b %Y')})"
-        if not pd.isnull(row['First Appeared Date'])
-        else "-",
+    lambda row: f"{row['First Appeared In']} ({row['First Appeared Date'].strftime('%Y')})"
+    if not pd.isnull(row['First Appeared Date'])
+    else "-",
     axis=1
 )
 
 columns = ["Animal", "Scientific name", "IUCN status", "# Times Featured"]
 
-st.sidebar.write("Add optional columns:")
 if st.sidebar.checkbox('First Seen'):
     columns.append("First Seen")
 if st.sidebar.checkbox('Last Seen'):
     columns.append("Last Seen")
 
 user_sort_selection = st.sidebar.radio(label="Sort by column:",
-                                       options=("Alphabetical",
-                                                "Scientific name",
-                                                "IUCN status",
-                                                "# Times Featured"))
+                                       options=("Alphabetical", "Scientific name", "IUCN status", "# Times Featured"))
 
 sort_dict = {
     "Alphabetical": ["Animal"],
@@ -142,12 +148,13 @@ ascending_order = {
     "# Times Featured": False
 }
 
+sort_columns = sort_dict.get(user_sort_selection, [])
+
 if len(families_selection) == 1:
     filtered_df_prep = filtered_df[columns + ["Species_status_original"]].drop_duplicates()
 else:
     filtered_df_prep = filtered_df[["Family"] + columns + ["Species_status_original"]].drop_duplicates()
 
-sort_columns = sort_dict.get(user_sort_selection, [])
 if user_sort_selection == "IUCN status":
     filtered_df_unique = filtered_df_prep.sort_values(
         by=sort_columns,
@@ -157,8 +164,7 @@ if user_sort_selection == "IUCN status":
 else:
     filtered_df_unique = filtered_df_prep.sort_values(
         by=sort_columns,
-        ascending=ascending_order.get(user_sort_selection, True)
-    )
+        ascending=ascending_order.get(user_sort_selection, True))
 
 filtered_df_unique = filtered_df_unique[columns]
 filtered_df_unique = filtered_df_unique.reset_index(drop=True)
@@ -212,10 +218,147 @@ status_colour_borders = {
 }
 
 status_chart = alt.Chart(df2).mark_bar(strokeWidth=2.5).encode(
-    y=alt.Y('Species_status_original', axis=alt.Axis(title='IUCN status', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed"), sort=status_order),
     x=alt.X('Unique_BinomialName_Count', axis=alt.Axis(title='# Species', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed", labelOverlap=True, tickMinStep=1)),
+    y=alt.Y('Species_status_original', axis=alt.Axis(title='IUCN status', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed"), sort=status_order),
     color=alt.Color('Species_status_original', scale=alt.Scale(domain=list(status_colours.keys()), range=list(status_colours.values())), legend=alt.Legend(title='', labelFont="Fira Sans Condensed", labelLimit=0, symbolLimit=0, titleLimit=0, values=list(set(df2["Species_status_original"])))),
-    stroke=alt.Stroke('Species_status_original', scale=alt.Scale(domain=list(status_colour_borders.keys()), range=list(status_colour_borders.values()))),
+    # stroke=alt.Stroke('Species_status_original', scale=alt.Scale(domain=list(status_colour_borders.keys()), range=list(status_colour_borders.values()))),
 )
 
 st.altair_chart(status_chart)
+
+df3 = filtered_df.groupby(["Country"]).agg({
+    "Binomial_name": "nunique"
+}).reset_index()
+df3.columns = ["Country", "NumSpecies"]
+
+# Sort the DataFrame based on "Unique_BinomialName_Count" in descending order
+sorted_df3 = df3.sort_values(by="NumSpecies", ascending=False)
+
+# Reset the index and create a new column with row numbers
+sorted_df3['RowNumber'] = range(1, len(sorted_df3) + 1)
+sorted_df3.reset_index(drop=True, inplace=True)
+
+# Add country code column
+sorted_df3['id'] = [None] * len(sorted_df3)  # Initialize the column with None
+
+# for i, country in enumerate(df["Country"]):
+#     if country is None:
+#         pass
+#     else:
+#         try:
+#             country_obj = iso3166.countries.get(country)
+#             if country != country_obj.name:
+#                 print(country, country_obj.name, int(country_obj.numeric.lstrip('0')))
+#         except KeyError:
+#             pass
+
+# for c in iso3166.countries:
+#     print(c)
+
+country_mapping = {
+    "Russia": 643,
+    "Tanzania": 834,
+    "Republic of the Congo": 178,
+    "Democratic Republic of the Congo": 180,
+    "Ivory Coast": 384,
+    "USA": 840,
+    "UK": 826,
+    "Falkland Islands": 238,
+    "Central African Republic": 140,
+    "South Sandwich Islands": 239,
+    "Viet Nam": 704,
+    "United Arab Emirates": 784,
+    "Türkiye": 792,
+    "Syria": 760,
+    "Micronesia": 583,
+    "Laos": 418,
+    "South Korea": 410,
+    "Bolivia": 68,
+    "French Guiana": 254
+}
+
+# Iterate over country names and add country code if found
+for i, country in enumerate(sorted_df3['Country']):
+    if country in country_mapping:
+        sorted_df3.loc[i, 'id'] = country_mapping[country]
+        sorted_df3.loc[i, 'Country_Name'] = country
+    else:
+        try:
+            country_obj = iso3166.countries.get(country)
+            if country != country_obj.name:
+                print(country, country_obj.name, int(country_obj.numeric.lstrip('0')))
+            if country_obj:
+                sorted_df3.loc[i, 'id'] = int(country_obj.numeric.lstrip('0'))
+                sorted_df3.loc[i, 'Country_Name'] = country_obj.name
+        except KeyError:
+            pass
+
+countries = alt.topo_feature(data.world_110m.url, 'countries')
+
+n = 10
+
+# Create two columns for the charts
+col1, col2 = st.columns([0.3, 0.7])
+
+# Chart 1 - Bar Chart
+with col1:
+    country_chart = alt.Chart(sorted_df3.head(n)).mark_bar().encode(
+        y=alt.Y('Country', axis=alt.Axis(title=f'Top {n} countries', titleFont="Fira Sans Condensed", labelFontSize=12, labelFont="Fira Sans Condensed", labelOverlap=True), sort="-x"),
+        x=alt.X('NumSpecies', axis=alt.Axis(title='# Species', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed", labelOverlap=True, tickMinStep=1)),
+        color=alt.Color('RowNumber', scale=alt.Scale(scheme='goldred'), sort="descending", legend=None),
+        tooltip=[
+            alt.Tooltip('Country:N'),
+            alt.Tooltip('NumSpecies:Q', title='# Species')
+        ]
+    ).properties(height=300)
+    st.altair_chart(country_chart, use_container_width=True)
+
+# Chart 2 - Choropleth Map
+with col2:
+    country_map = alt.Chart(countries).mark_geoshape(
+        stroke='#353535',
+        strokeWidth=0.3
+    ).transform_lookup(
+        lookup='id',
+        from_=alt.LookupData(data=sorted_df3, key='id', fields=['NumSpecies', 'Country'])
+    ).transform_calculate(
+        NumSpecies='isValid(datum.NumSpecies) ? datum.NumSpecies : -1',
+    ).encode(
+        color=alt.condition('datum.NumSpecies > 0',
+                            alt.Color('NumSpecies:Q', scale=alt.Scale(scheme='goldred'), sort="ascending", legend=None),
+                            alt.value('#242424')
+                            ),
+        tooltip=[
+            alt.Tooltip('Country:N'),
+            alt.Tooltip('NumSpecies:Q', title='# Species')
+        ]
+    ).project(
+        "naturalEarth1"
+        # "orthographic"
+        # "equalEarth"
+    ).properties(height=250)
+
+    st.altair_chart(country_map, use_container_width=True)
+
+# https://vega.github.io/vega/docs/schemes/
+
+# df4 = filtered_df.groupby("Class").agg({
+#     "Binomial_name": "nunique"
+# }).reset_index()
+# df4.columns = ["Class", "Unique_BinomialName_Count"]
+#
+# # Sort the DataFrame based on "Unique_BinomialName_Count" in descending order
+# sorted_df4 = df4.sort_values(by="Unique_BinomialName_Count", ascending=False)
+#
+# # Reset the index and create a new column with row numbers
+# sorted_df4['RowNumber'] = range(1, len(sorted_df4) + 1)
+# sorted_df4.reset_index(drop=True, inplace=True)
+#
+# class_chart = st.altair_chart(alt.Chart(sorted_df4).mark_bar().encode(
+#     y=alt.Y('Class', axis=alt.Axis(title='Taxon Class', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed", labelOverlap=True),
+#             sort="-x"),
+#     x=alt.X('Unique_BinomialName_Count',
+#             axis=alt.Axis(title='# Species', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed",
+#                           labelOverlap=True, tickMinStep=1)),
+#     color=alt.Color('RowNumber', scale=alt.Scale(scheme='plasma'), sort="descending", legend=None)
+# ).properties(height=500))
