@@ -3,8 +3,11 @@ from google.oauth2 import service_account
 from gsheetsdb import connect
 import pandas as pd
 import altair as alt
-from vega_datasets import data
+from vega_datasets import data as vega_data
 import iso3166
+import random
+
+random.seed(42)
 
 with open("style.css") as css_file:
     st.markdown(f'<style>{css_file.read()}</style>', unsafe_allow_html=True)
@@ -13,6 +16,30 @@ with open("style.css") as css_file:
 #     st.markdown(f'<script>{js_file.read()}</script>', unsafe_allow_html=True)
 
 status_order = ["LC", "NT", "VU", "EN", "CR", "EX", "DO", "DD", "NE"]
+
+status_code_labels = {
+    "LC": "Least Concern",
+    "NT": "Near Threatened",
+    "VU": "Vulnerable",
+    "EN": "Endangered",
+    "CR": "Critically Endangered",
+    "DO": "Domesticated",
+    "DD": "Data Deficient",
+    "NE": "Not Evaluated",
+    "EX": "Extinct"
+}
+
+status_css = {
+    'LC': 'background-color: #4fc1ff; border: 2px solid #3a95d1; color: #ffffff; text-shadow: 0px 0px 1px #3283b5;',
+    'NT': 'background-color: #67d62f; border: 2px solid #4cb517; color: #ffffff; text-shadow: 0px 0px 1px #47a315;',
+    'VU': 'background-color: #edcb0b; border: 2px solid #dbae0d; color: #ffffff; text-shadow: 0px 0px 1px #c28b00;',
+    'EN': 'background-color: #ff9123; border: 2px solid #c48e21; color: #ffffff; text-shadow: 0px 0px 1px #b38220;',
+    'CR': 'background-color: #f03022; border: 2px solid #a8482b; color: #ffffff; text-shadow: 0px 0px 1px #7d3a25;',
+    'NE': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
+    'DD': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
+    'DO': 'background-color: #9C826C; border: 2px solid #85552c; color: #ffffff; text-shadow: 0px 0px 2px #444444;',
+    'EX': 'background-color: #363636; border: 2px solid #ff4647; color: #ffffff; text-shadow: 0px 0px 2px #000000;',
+}
 
 @st.cache_resource(ttl=6000)
 def get_data(sheet_url):
@@ -23,10 +50,10 @@ def get_data(sheet_url):
     conn = connect(credentials=credentials)
 
     # Fetch data from the Google Sheet.
-    data = conn.execute(f'SELECT * FROM "{sheet_url}"')
+    raw = conn.execute(f'SELECT * FROM "{sheet_url}"')
 
     # Convert the data to a pandas DataFrame.
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(raw)
 
     return df
 
@@ -35,12 +62,81 @@ sheet_url = st.secrets["private_gsheets_url"]
 
 df = get_data(sheet_url)
 
+initial_cols = ["Appearance_number",
+                "Coappearance_number",
+                "Other_animals",
+                "Show",
+                "Episode",
+                "Air_date",
+                "Is_New",
+                "ID",
+                "Image_1",
+                "Image_2",
+                "Image_3",
+                # "Sequence_number",
+                "Animal_name",
+                "Animal_name_original",
+                "Scientific_name",
+                "Species_status",
+                "Species_status_original",
+                "Class",
+                "Family",
+                "Species_lock_date",
+                "Summary",
+                "Location",
+                "Country",
+                "Country_code",
+                "Continent",
+                # "Scientific_advisor",
+                "Notes",
+                # "Link_1",
+                # "Link_2",
+                # "Link_3",
+                "Lat",
+                "Lon",
+                # "Sentence_start",
+                # "Sentence_end"
+                ]
+
+raw_data = df[initial_cols].copy()
+
+# ------------- PRE-PROCESSING ------------ #
+
+# Renaming columns
+column_mapping = {col: col.replace("_", " ") for col in raw_data.columns}
+raw_data.rename(columns=column_mapping, inplace=True)
+
+raw_data.rename(columns={'Species status': 'Subspecies status code',
+                     'Species status original': 'Species status code',
+                     'Animal name original': 'Animal',
+                     'Animal name': 'Animal subspecies'
+                         },
+                inplace=True)
+
+# Get binomial name where scientific name contains trinomial name
+raw_data["Binomial name"] = raw_data["Scientific name"].str.split().str[:2].str.join(" ")
+
+# Map species status codes to full status names
+raw_data["Species status"] = raw_data["Species status code"].map(status_code_labels)
+raw_data["Subspecies status"] = raw_data["Subspecies status code"].map(status_code_labels)
+
+# Get ISO3166 ID using country code
+country_mapping = {c.alpha3: int(c.numeric.lstrip('0')) for c in iso3166.countries}
+raw_data["ISO3166 ID"] = raw_data["Country code"].replace(country_mapping)
+
+# Remove indeterminate species
+raw_data = raw_data[~raw_data["Animal"].apply(lambda x: isinstance(x, str) and "sp." in x)]
+
+# print(raw_data.loc[raw_data["Animal"] == "Leopard", ["Animal", "Animal subspecies", "Species status", "Subspecies status", "Scientific name"]].drop_duplicates().head())
+
+# ------------- OLD CODE ------------ #
+
+
+# Get binomial name where scientific name contains trinomial name
 df["Binomial_name"] = df["Scientific_name"].str.split().str[:2].str.join(" ")
 
-# print(df["Country"].unique())
-
-# Sort the DataFrame by "Air_Date" column in descending order
-df_sorted = df.sort_values("Air_Date", ascending=False).copy()
+# Sort the DataFrame by "Air_date" column in descending order
+df_sorted = df.sort_values("Air_date", ascending=False).copy()
 
 # Group the DataFrame by "Binomial_name" and select the first row for each group (highest "Times_Appeared" value)
 last_appearance = df_sorted.groupby("Binomial_name").first()
@@ -49,19 +145,19 @@ last_appearance = df_sorted.groupby("Binomial_name").first()
 first_appearance = df_sorted.groupby("Binomial_name").last()
 
 # Merge the last appearance information back into the original DataFrame
-merged_df = pd.merge(df, last_appearance[["Show", "Episode", "Air_Date", "Times_Appeared"]],
+merged_df = pd.merge(df, last_appearance[["Show", "Episode", "Air_date", "Appearance_number"]],
                      on="Binomial_name", how="left").copy()
 merged_df.rename(columns={"Show_y": "Last Appeared In",
                           "Episode_y": "Last Appeared In Episode",
-                          "Air_Date_y": "Last Appeared Date",
-                          "Times_Appeared_y": "# Times Featured"}, inplace=True)
+                          "Air_date_y": "Last Appeared Date",
+                          "Appearance_number_y": "# Times Featured"}, inplace=True)
 
 # Merge the first appearance information back into the original DataFrame
-merged_df = pd.merge(merged_df, first_appearance[["Show", "Episode", "Air_Date"]],
+merged_df = pd.merge(merged_df, first_appearance[["Show", "Episode", "Air_date"]],
                      on="Binomial_name", how="left").copy()
 merged_df.rename(columns={"Show": "First Appeared In",
                           "Episode": "First Appeared In Episode",
-                          "Air_Date": "First Appeared Date"}, inplace=True)
+                          "Air_date": "First Appeared Date"}, inplace=True)
 
 
 # Filter based on user selections
@@ -291,10 +387,10 @@ for i, country in enumerate(sorted_df3['Country']):
         except KeyError:
             pass
 
-countries = alt.topo_feature(data.world_110m.url, 'countries')
+countries = alt.topo_feature(vega_data.world_110m.url, 'countries')
 
 n = 10
-
+colour_scheme = "goldgreen"
 # Create two columns for the charts
 col1, col2 = st.columns([0.3, 0.7])
 
@@ -303,7 +399,7 @@ with col1:
     country_chart = alt.Chart(sorted_df3.head(n)).mark_bar().encode(
         y=alt.Y('Country', axis=alt.Axis(title=f'Top {n} countries', titleFont="Fira Sans Condensed", labelFontSize=12, labelFont="Fira Sans Condensed", labelOverlap=True), sort="-x"),
         x=alt.X('NumSpecies', axis=alt.Axis(title='# Species', titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed", labelOverlap=True, tickMinStep=1)),
-        color=alt.Color('RowNumber', scale=alt.Scale(scheme='goldred'), sort="descending", legend=None),
+        color=alt.Color('RowNumber', scale=alt.Scale(scheme=colour_scheme), sort="descending", legend=None),
         tooltip=[
             alt.Tooltip('Country:N'),
             alt.Tooltip('NumSpecies:Q', title='# Species')
@@ -323,7 +419,7 @@ with col2:
         NumSpecies='isValid(datum.NumSpecies) ? datum.NumSpecies : -1',
     ).encode(
         color=alt.condition('datum.NumSpecies > 0',
-                            alt.Color('NumSpecies:Q', scale=alt.Scale(scheme='goldred'), sort="ascending", legend=None),
+                            alt.Color('NumSpecies:Q', scale=alt.Scale(scheme=colour_scheme), sort="ascending", legend=None),
                             alt.value('#242424')
                             ),
         tooltip=[
