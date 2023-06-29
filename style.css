@@ -141,7 +141,6 @@ div.stDataFrame.css-17b7mgn.ebxhiwi0, div.glideDataEditor.wzg2m5k, div.s1jz82f8 
 	background: rgba(0, 0, 0, 0.1);
 }
 
-
 div.scroll-container {
   display: flex;
   background-color: #0f1116;
@@ -151,8 +150,8 @@ div.scroll-container {
 }
 
 div.scroll-container img {
-  filter: saturate(0.7);
-  opacity: 0.8;
+  filter: saturate(0.9);
+  opacity: 0.9;
   transition: 0.5s;
 }
 
@@ -178,7 +177,7 @@ div.image-container .popup-title {
 .popup-title {
   top:100%;
   width:100%;
-  opacity: 0.7;
+  opacity: 0.9;
   font-size: 12px;
   text-wrap: wrap;
 }
