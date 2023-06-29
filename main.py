@@ -8,14 +8,11 @@ import iso3166
 import random
 
 random.seed(42)
-
+sample_animal = "Bornean orangutan"
 with open("style.css") as css_file:
     st.markdown(f'<style>{css_file.read()}</style>', unsafe_allow_html=True)
 
-# with open("./src/tablesort.js") as js_file:
-#     st.markdown(f'<script>{js_file.read()}</script>', unsafe_allow_html=True)
-
-st.markdown("""<br><br>""")
+st.write("""<br>""", unsafe_allow_html=True)
 
 status_order = ["LC", "NT", "VU", "EN", "CR", "EX", "DO", "DD", "NE"]
 
@@ -130,8 +127,6 @@ raw_data["ISO3166 ID"] = raw_data["Country code"].replace(country_mapping)
 # Remove indeterminate species
 raw_data = raw_data[~raw_data["Animal"].apply(lambda x: isinstance(x, str) and "sp." in x)]
 
-# print(raw_data.loc[raw_data["Animal"] == "Leopard", ["Animal", "Animal subspecies", "Species status", "Subspecies status", "Scientific name"]].drop_duplicates().head())
-
 # ------------- USER SELECTION ------------ #
 
 # Filter based on user selections
@@ -164,7 +159,7 @@ st.sidebar.markdown("""---""")
 
 unique_animals = sorted(raw_data["Animal"].dropna().unique())
 if (len(continents_selection) == 0) & (len(countries_selection) == 0) & (len(class_selection) == 0) & (len(families_selection) == 0):
-    animal_selection = st.selectbox("Choose an animal from dropdown or via filters in sidebar", unique_animals, unique_animals.index("Tiger"))
+    animal_selection = st.selectbox("Choose an animal from dropdown or via filters in sidebar", unique_animals, unique_animals.index(sample_animal))
 else:
     filtered_animals = raw_data.loc[continents_filter & countries_filter & class_filter & family_filter, "Animal"].dropna().unique()
     unique_animals = sorted(filtered_animals)
@@ -195,18 +190,40 @@ else:
 
     image_paths = []
 
-    for index, row in animal_data.iterrows():
+    total_images_count = animal_data[["Image 1", "Image 2", "Image 3"]].notnull().sum(axis=1).sum()
+
+    for _, row in animal_data.iterrows():
         if row["Image 1"] is not None:
             show = row["Show"]
             episode = row["Episode"]
             air_date = row["Air date"].strftime("%-d %b %Y")
             air_year = row["Air date"].strftime("%Y")
-            image = random.choice([value for value in [row["Image 1"], row["Image 2"], row["Image 3"]] if value is not None])
-            path = f"https://ulluri.com/wildlifeonscreen/{show.replace(' ', '%20')}/{episode.replace(' ', '%20')}%20-%20{air_date.replace(' ', '%20')}/{image}.webp"
-            image_paths.append([show, episode, air_year, path])
 
-    st.write('<div class="scroll-container">' + ''.join(f'<div class="image-container"><a href="{image[3]}"><img src="{image[3]}" alt="{image[0] + " - " + image[1] + " (" + image[2] + ")"}" width="250px"></a> <div class="popup-title"><span>{image[0] + " - " + image[1] + " (" + image[2] + ")"}</span></div></div>' for image in image_paths) + '</div>', unsafe_allow_html=True)
+            if total_images_count <= 6:
+                selected_images = [value for value in [row["Image 1"], row["Image 2"], row["Image 3"]] if
+                                   value is not None]
+            else:
+                selected_images = [random.choice(
+                    [value for value in [row["Image 1"], row["Image 2"], row["Image 3"]] if value is not None])]
 
+            for image in selected_images:
+                path = f"https://ulluri.com/wildlifeonscreen/{show.replace(' ', '%20')}/{episode.replace(' ', '%20')}%20-%20{air_date.replace(' ', '%20')}/{image}.webp"
+                image_paths.append([show, episode, air_year, path])
+
+    if len(image_paths) == 0:
+        st.write(
+            "<div style='text-align:center;'><h6 style='color: darkgrey;'><i>Images not yet available. Check back soon.</i></h6></div>",
+            unsafe_allow_html=True)
+    else:
+        st.write(
+            '<div class="scroll-container">'
+            + "".join(
+                f'<div class="image-container"><a href="{image[3]}"><img src="{image[3]}" alt="{image[0] + " - " + image[1] + " (" + image[2] + ")"}" width="250px"></a> <div class="popup-title"><span>{image[0] + " - " + image[1] + " (" + image[2] + ")"}</span></div></div>'
+                for image in image_paths
+            )
+            + "</div>",
+            unsafe_allow_html=True,
+        )
     # ------------- MAP ------------ #
 
     st.markdown(f"<div class='section-banner'><h5>Locations</h5></div>", unsafe_allow_html=True)
