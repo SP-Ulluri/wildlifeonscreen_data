@@ -15,6 +15,8 @@ with open("style.css") as css_file:
 # with open("./src/tablesort.js") as js_file:
 #     st.markdown(f'<script>{js_file.read()}</script>', unsafe_allow_html=True)
 
+st.markdown("""<br><br>""")
+
 status_order = ["LC", "NT", "VU", "EN", "CR", "EX", "DO", "DD", "NE"]
 
 status_code_labels = {
