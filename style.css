@@ -143,6 +143,7 @@ div.stDataFrame.css-17b7mgn.ebxhiwi0, div.glideDataEditor.wzg2m5k, div.s1jz82f8 
 
 
 div.scroll-container {
+  display: flex;
   background-color: #0f1116;
   overflow: auto;
   white-space: nowrap;
@@ -152,12 +153,45 @@ div.scroll-container {
 div.scroll-container img {
   filter: saturate(0.7);
   opacity: 0.8;
-  transition: 0.3s;
+  transition: 0.5s;
 }
 
 div.scroll-container img:hover {
     filter: saturate(1);
     opacity: 1
+}
+
+div.image-container {
+    padding-right: 5px;
+}
+
+div.image-container img {
+    border-radius: 5px 5px 0px 0px;
+}
+
+div.image-container .popup-title {
+  background-color: black;
+  border-radius: 0px 0px 5px 5px;
+  transition: 0.5s;
+}
+
+.popup-title {
+  top:100%;
+  width:100%;
+  opacity: 0.7;
+  font-size: 12px;
+  text-wrap: wrap;
+}
+.popup-title span {
+    display: flex;
+    margin: 0;
+    color: white;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.image-container:hover .popup-title {
+  opacity: 1;
 }
 
 div.section-banner {
