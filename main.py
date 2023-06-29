@@ -8,7 +8,9 @@ import iso3166
 import random
 
 random.seed(42)
-sample_animal = "Bornean orangutan"
+
+sample_animal = "African bush elephant"
+
 with open("style.css") as css_file:
     st.markdown(f'<style>{css_file.read()}</style>', unsafe_allow_html=True)
 
