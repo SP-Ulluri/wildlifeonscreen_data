@@ -51,7 +51,6 @@ def get_data(sheet_url):
 
     # Fetch data from the Google Sheet.
     raw = conn.execute(f'SELECT * FROM "{sheet_url}"')
-
     # Convert the data to a pandas DataFrame.
     df = pd.DataFrame(raw)
 
@@ -59,8 +58,10 @@ def get_data(sheet_url):
 
 
 sheet_url = st.secrets["private_gsheets_url"]
+sheet_url_episodes = st.secrets["private_gsheets_url_episodes"]
 
 df = get_data(sheet_url)
+df_episodes = get_data(sheet_url_episodes)
 
 initial_cols = ["Appearance_number",
                 "Coappearance_number",
@@ -133,7 +134,7 @@ raw_data = raw_data[~raw_data["Animal"].apply(lambda x: isinstance(x, str) and "
 
 unique_animals = sorted(raw_data["Animal"].dropna().unique())
 
-animal_selection = st.sidebar.selectbox("Choose animal", unique_animals, unique_animals.index("Leopard"))
+animal_selection = st.sidebar.selectbox("Choose animal", unique_animals, unique_animals.index("Tiger"))
 
 animal_data = raw_data.loc[raw_data["Animal"] == f"{animal_selection}"].copy().sort_values(by=["Air date"])
 
@@ -181,16 +182,19 @@ countries_map = alt.Chart(countries).mark_geoshape(
 ).project('naturalEarth1')
 
 points_df = animal_data[(animal_data['Lon'].notna()) & (animal_data['Lat'].notna())].copy()
-points_df["Show"] = points_df.apply(lambda x: f'{x["Show"]} ({x["Air date"].strftime("%Y")})', axis=1)
+if not points_df.empty:
+    points_df["Show"] = points_df.apply(lambda x: f'{x["Show"]} ({x["Air date"].strftime("%Y")})', axis=1)
 
-points = alt.Chart(points_df).mark_circle(opacity=0.5, color='#EDCB0D').encode(
-    longitude='Lon:Q',
-    latitude='Lat:Q',
-    size=alt.value(50),
-    tooltip=[alt.Tooltip('Country:N'), alt.Tooltip('Show:N')]
-)
+    points = alt.Chart(points_df).mark_circle(opacity=0.5, color='#EDCB0D').encode(
+        longitude='Lon:Q',
+        latitude='Lat:Q',
+        size=alt.value(50),
+        tooltip=[alt.Tooltip('Country:N'), alt.Tooltip('Show:N')]
+    )
 
-st.altair_chart(countries_map + points, use_container_width=True)
+    st.altair_chart(countries_map + points, use_container_width=True)
+else:
+    st.altair_chart(countries_map, use_container_width=True)
 
 # ------------- TABLE ------------ #
 
@@ -200,26 +204,33 @@ table_data = animal_data.copy()
 
 table_headers = ["Show",
                  "Episode",
-                 "Air date",
+                 "Date",
+                 "Watch now",
                  "Country",
                  "Continent"]
 
-if len(table_data["Scientific name"].unique()) > 1:
+if len(table_data["Animal subspecies"].unique()) > 1:
     table_data.rename(columns={'Animal subspecies': 'Name'}, inplace=True)
-    table_data["Scientific name"] = table_data["Scientific name"].map(lambda x: f"<i>{x}</i>" if x is not None else "-")
-    table_data["IUCN status"] = table_data["Subspecies status code"].map(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "-")
+    table_data["Scientific name"] = table_data["Scientific name"].map(lambda x: f"<i>{x}</i>" if x is not None else "")
+    table_data["IUCN status"] = table_data["Subspecies status code"].map(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "")
     table_headers.extend(["Name", "Scientific name", "IUCN status"])
 
-table_data["Air date"] = table_data["Air date"].apply(lambda x: x.strftime("%-d %b %Y"))
+table_data["Date"] = table_data["Air date"].apply(lambda x: x.strftime("%-d %b %Y"))
+
+table_data = table_data.merge(df_episodes[["Show", "Episode", "Streaming_link"]], on=["Show", "Episode"], how="left")
+
+table_data["Watch now"] = table_data["Streaming_link"].apply(lambda x: f"<a href='{x}'><img src={'https://iplayer-web.files.bbci.co.uk/page-builder/51.0.0/img/icons/favicon.ico' if (not pd.isna(x) and 'bbc' in x) else 'https://assets.nflxext.com/ffe/siteui/common/icons/nficon2016.ico'} width='15px'></a>" if x is not None else "")
 
 user_sort_selection = st.sidebar.radio(label="Sort by:",
-                                       options=set(table_headers))
+                                       options=tuple(table_headers))
 
 if user_sort_selection == "IUCN status":
     table_data.sort_values(by="Subspecies status code", key=lambda x: pd.Categorical(x, categories=status_order, ordered=True), inplace=True)
+elif user_sort_selection == "Date":
+    table_data.sort_values(by="Air date", inplace=True)
 else:
     table_data.sort_values(by=user_sort_selection, inplace=True)
 
-html_table = table_data[table_headers].to_html(escape=False, index=False, classes=['styled-table', 'table-sortable'])
+html_table = table_data[table_headers].drop_duplicates().to_html(escape=False, index=False, classes=['styled-table', 'table-sortable'])
 
 st.markdown(f"<div class='species_table'>{html_table}</div>", unsafe_allow_html=True)
