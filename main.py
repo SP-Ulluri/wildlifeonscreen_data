@@ -160,12 +160,13 @@ family_filter = (raw_data["Family"].isin(families_selection)) | (len(families_se
 st.sidebar.markdown("""---""")
 
 unique_animals = sorted(raw_data["Animal"].dropna().unique())
+
 if (len(continents_selection) == 0) & (len(countries_selection) == 0) & (len(class_selection) == 0) & (len(families_selection) == 0):
-    animal_selection = st.selectbox("Choose an animal from dropdown or via filters in sidebar", unique_animals, unique_animals.index(sample_animal))
+    animal_selection = st.selectbox(f"Choose from {len(unique_animals):,} animal species from dropdown or via filters in sidebar", unique_animals, unique_animals.index(sample_animal))
 else:
     filtered_animals = raw_data.loc[continents_filter & countries_filter & class_filter & family_filter, "Animal"].dropna().unique()
     unique_animals = sorted(filtered_animals)
-    animal_selection = st.selectbox("Choose an animal from dropdown or via filters in sidebar", unique_animals)
+    animal_selection = st.selectbox(f"Choose from {len(unique_animals):,} animal species from dropdown or via filters in sidebar", unique_animals)
 
 st.markdown("""---""")
 
@@ -260,9 +261,9 @@ else:
 
     table_data = animal_data.copy()
 
-    table_headers = ["Show",
+    table_headers = ["Date",
+                     "Show",
                      "Episode",
-                     "Date",
                      "Watch now",
                      "Country",
                      "Continent"]
