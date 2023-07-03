@@ -300,8 +300,7 @@ with animal_tab:
             table_data["Scientific name"] = table_data["Scientific name"].map(lambda x: f"<i>{x}</i>" if x is not None else "")
             table_data["IUCN status"] = table_data["Subspecies status code"].map(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "")
             table_headers.extend(["Name", "Scientific name", "IUCN status"])
-        # print(status_css.get("LC"))
-        # print(table_data["IUCN status"].head().values)
+
         table_data["Date"] = table_data["Air date"].apply(lambda x: x.strftime("%-d %b %Y"))
 
         table_data["Country"] = table_data["Country"].apply(lambda x: x if x is not None else "")
@@ -322,7 +321,6 @@ with animal_tab:
 
         table_data["Show"] = table_data.apply(
             lambda x: f'{x["Show"]} ({x["Air date"].strftime("%Y")})' if x["Air date"] is not None else "", axis=1)
-
 
         animal_dot_plot_chart = alt.Chart(
             data=table_data
@@ -346,17 +344,6 @@ with animal_tab:
 
         st.markdown(f"<div class='species_table'>{html_table}</div>", unsafe_allow_html=True)
 
-
-
-    # gaussian_jitter = alt.Chart(table_data).mark_line(point=True).encode(
-    #     y="Scientific name:N",
-    #     x="Date:T",
-    #     color=alt.Color('Scientific name:N').legend(None)
-    # )
-
-
-    # st.altair_chart(gaussian_jitter, use_container_width=True)
-
 with location_tab:
     filtered_df = raw_data[continents_filter & countries_filter & class_filter & family_filter].copy()
 
@@ -372,14 +359,12 @@ with location_tab:
         }).reset_index()
         status_chart_df.columns = ["IUCN status", "# Species"]
 
-        # status_chart_df["IUCN status"] = status_chart_df["IUCN status code"].apply status_code_labels
         status_chart = alt.Chart(status_chart_df).encode(
             x=alt.X("# Species", axis=alt.Axis(title="# Species", titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed", labelOverlap=True, tickMinStep=1)),
             y=alt.Y("IUCN status", axis=alt.Axis(title="", titleFont="Fira Sans Condensed", labelFont="Fira Sans Condensed"), sort=status_order),
             color=alt.Color("IUCN status", scale=alt.Scale(domain=list(status_colours.keys()), range=list(status_colours.values())), legend=None),
         )
 
-        # status_chart = status_chart.mark_bar() + status_chart.mark_text(align='left', dx=2, color='white')
         st.altair_chart(status_chart.mark_bar())
 
         st.markdown(f"<div class='section-banner'><h5>Species by Country</h5></div>", unsafe_allow_html=True)
@@ -458,22 +443,6 @@ with location_tab:
 
         st.markdown(f"<div class='species_table'>{html_table}</div>", unsafe_allow_html=True)
 
-        # # Convert to first day of the month
-        # filtered_df['Air date (month)'] = filtered_df['Air date'].to_numpy().astype('datetime64[M]')
-        #
-        # gaussian_jitter = alt.Chart(filtered_df).mark_circle(size=12).encode(
-        #     y="Species status code:N",
-        #     x="Air date:T",
-        #     yOffset="jitter:Q",
-        #     color=alt.Color('Species status code:N').legend(None)
-        # ).transform_calculate(
-        #     # Generate Gaussian jitter with a Box-Muller transform
-        #     jitter="sqrt(-2*log(random()))*cos(2*PI*random())"
-        # )
-        #
-        # st.altair_chart(gaussian_jitter, use_container_width=True)
-
-
         st.markdown(f"<div class='section-banner'><h5>Species appearances over time</h5></div>", unsafe_allow_html=True)
 
         dot_plot_df = filtered_df.sort_values("Air date", ascending=False).copy()
@@ -498,13 +467,6 @@ with location_tab:
                                   "Episode_y": "Last Appeared In Episode",
                                   "Air date_y": "Last Appeared Date",
                                   "# Appearances_y": "# Times Featured"}, inplace=True)
-
-        # Merge the first appearance information back into the original DataFrame
-        # dot_plot_df = pd.merge(dot_plot_df, first_appearance[["Show", "Episode", "Air_date"]],
-        #                      on="Binomial_name", how="left").copy()
-        # dot_plot_df.rename(columns={"Show": "First Appeared In",
-        #                           "Episode": "First Appeared In Episode",
-        #                           "Air_date": "First Appeared Date"}, inplace=True)
 
         dot_plot_df.sort_values(by=["Last Appeared Date"], ascending=False, inplace=True)
         max_animals_to_display = 20
