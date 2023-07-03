@@ -52,15 +52,15 @@ status_code_labels = {
 }
 
 status_css = {
-    'Least Concern': 'background-color: #4fc1ff; border: 2px solid #3a95d1; color: #ffffff; text-shadow: 0px 0px 1px #3283b5;',
-    'Near Threatened': 'background-color: #67d62f; border: 2px solid #4cb517; color: #ffffff; text-shadow: 0px 0px 1px #47a315;',
-    'Vulnerable': 'background-color: #d6ba18; border: 2px solid #cfa715; color: #ffffff; text-shadow: 0px 0px 1px #c28b00;',
-    'Endangered': 'background-color: #ff9123; border: 2px solid #c48e21; color: #ffffff; text-shadow: 0px 0px 1px #b38220;',
-    'Critically Endangered': 'background-color: #f03022; border: 2px solid #a8482b; color: #ffffff; text-shadow: 0px 0px 1px #7d3a25;',
-    'Not Evaluated': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
-    'Data Deficient': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
-    'Domesticated': 'background-color: #9C826C; border: 2px solid #85552c; color: #ffffff; text-shadow: 0px 0px 2px #444444;',
-    'Extinct': 'background-color: #363636; border: 2px solid #ff4647; color: #ffffff; text-shadow: 0px 0px 2px #000000;',
+    'LC': 'background-color: #4fc1ff; border: 2px solid #3a95d1; color: #ffffff; text-shadow: 0px 0px 1px #3283b5;',
+    'NT': 'background-color: #67d62f; border: 2px solid #4cb517; color: #ffffff; text-shadow: 0px 0px 1px #47a315;',
+    'VU': 'background-color: #d6ba18; border: 2px solid #cfa715; color: #ffffff; text-shadow: 0px 0px 1px #c28b00;',
+    'EN': 'background-color: #ff9123; border: 2px solid #c48e21; color: #ffffff; text-shadow: 0px 0px 1px #b38220;',
+    'CR': 'background-color: #f03022; border: 2px solid #a8482b; color: #ffffff; text-shadow: 0px 0px 1px #7d3a25;',
+    'NE': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
+    'DD': 'background-color: #ffffff; border: 2px solid #ebebeb; color: #000000; text-shadow: 0px 0px 2px #ffffff;',
+    'DO': 'background-color: #9C826C; border: 2px solid #85552c; color: #ffffff; text-shadow: 0px 0px 2px #444444;',
+    'EX': 'background-color: #363636; border: 2px solid #ff4647; color: #ffffff; text-shadow: 0px 0px 2px #000000;',
 }
 
 countries = alt.topo_feature(vega_data.world_110m.url, 'countries')
@@ -300,7 +300,8 @@ with animal_tab:
             table_data["Scientific name"] = table_data["Scientific name"].map(lambda x: f"<i>{x}</i>" if x is not None else "")
             table_data["IUCN status"] = table_data["Subspecies status code"].map(lambda x: f'<span style="{status_css.get(x, "")}" class="ConservationStatusLabel">{x}</span>' if x is not None else "")
             table_headers.extend(["Name", "Scientific name", "IUCN status"])
-
+        # print(status_css.get("LC"))
+        # print(table_data["IUCN status"].head().values)
         table_data["Date"] = table_data["Air date"].apply(lambda x: x.strftime("%-d %b %Y"))
 
         table_data["Country"] = table_data["Country"].apply(lambda x: x if x is not None else "")
