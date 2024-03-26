@@ -209,7 +209,7 @@ with animal_tab:
         species_status= animal_data["Species status"].iloc[0]
         species_status_code = animal_data["Species status code"].iloc[0]
         last_updated_at = animal_data["Species lock date"].sort_values().iloc[-1]  # Get last Species lock date
-        st.write(f'<div class="animal-header"><h1 style="padding:0px;">{animal_selection}</h1><span style="text-align:right;"><h6 style="opacity:0.5; padding:0px"><i>Updated: {last_updated_at.strftime("%d %b %Y")}</i></h6></span></div>', unsafe_allow_html=True)
+        st.write(f'<div class="animal-header"><h1 style="padding:0px;">{animal_selection}</h1><span style="text-align:right;"><h6 style="opacity:0.5; padding:0px"><i>Updated: {last_updated_at}</i></h6></span></div>', unsafe_allow_html=True)
         st.write(f'<div class="animal-info-header"><h5 style="padding:0px;"><i>{binomial_name}</i></h5> <span style="{status_css.get(species_status_code, "")}" class="ConservationStatusLabelLarge">{species_status}</span></div>' if species_status is not None else "", unsafe_allow_html=True)
 
         animal_data = animal_data.drop_duplicates().reset_index(drop=True)
