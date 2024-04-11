@@ -223,7 +223,7 @@ with animal_tab:
 
         total_images_count = animal_data[["Image 1", "Image 2", "Image 3"]].notnull().sum(axis=1).sum()
 
-        for _, row in animal_data.iterrows():
+        for _, row in animal_data[::-1].iterrows():
             if row["Image 1"] is not None:
                 show = row["Show"]
                 episode = row["Episode"]
@@ -250,7 +250,7 @@ with animal_tab:
                 '<div class="scroll-container">'
                 + "".join(
                     f'<div class="image-container"><a href="{image[3]}"><img src="{image[3]}" alt="{image[0] + " - " + image[1] + " (" + image[2] + ")"}" width="250px"></a> <div class="popup-title"><span>{image[0] + " - " + image[1] + " (" + image[2] + ")"}</span></div></div>'
-                    for image in image_paths.reverse()
+                    for image in image_paths
                 )
                 + "</div>",
                 unsafe_allow_html=True,
