@@ -250,7 +250,7 @@ with animal_tab:
                 '<div class="scroll-container">'
                 + "".join(
                     f'<div class="image-container"><a href="{image[3]}"><img src="{image[3]}" alt="{image[0] + " - " + image[1] + " (" + image[2] + ")"}" width="250px"></a> <div class="popup-title"><span>{image[0] + " - " + image[1] + " (" + image[2] + ")"}</span></div></div>'
-                    for image in image_paths
+                    for image in image_paths.reverse()
                 )
                 + "</div>",
                 unsafe_allow_html=True,
