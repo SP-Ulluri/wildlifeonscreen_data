@@ -216,32 +216,6 @@ with animal_tab:
         animal_data.index += 1
 
         # ------------- GALLERY ------------ #
-        # Define CSS styles for the overlay gallery
-        st.markdown(
-            """
-            <style>
-            .gallery-overlay {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.7);
-                z-index: 9999;
-                overflow: auto;
-            }
-            .gallery-image {
-                display: block;
-                margin: 20px auto;
-                max-width: 80%;
-                max-height: 80%;
-                box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.75);
-            }
-            </style>
-            """,
-        unsafe_allow_html=True)
-
         st.markdown(f"<div class='section-banner'><h5>Image Gallery</h5></div>", unsafe_allow_html=True)
         
         image_paths = []
@@ -278,31 +252,6 @@ with animal_tab:
                     for image in image_paths
                 )
                 + "</div>",
-                unsafe_allow_html=True,
-            )
-                # Overlay gallery
-            st.markdown(
-                f"""
-                <div id="gallery-overlay" class="gallery-overlay">
-                    <span class="close-overlay" onclick="document.getElementById('gallery-overlay').style.display = 'none';">&times;</span>
-                    <img class="gallery-image" id="gallery-image" src="" alt="Gallery Image">
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            # JavaScript to handle image click and display in the overlay gallery
-            st.markdown(
-                """
-                <script>
-                const images = document.querySelectorAll('.image-container img');
-                images.forEach(img => {
-                    img.addEventListener('click', () => {
-                        document.getElementById('gallery-overlay').style.display = 'block';
-                        document.getElementById('gallery-image').src = img.src.replace('.webp', '.png');
-                    });
-                });
-                </script>
-                """,
                 unsafe_allow_html=True,
             )
         # ------------- MAP ------------ #
