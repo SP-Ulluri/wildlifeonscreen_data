@@ -327,7 +327,7 @@ with animal_tab:
             x=alt.X("year(Date):T", title="", scale=alt.Scale(domain=[table_data["Air date"].min().year, dt.now().year])),
             y=alt.Y("Animal:N", title="", axis=alt.Axis(labels=False)),
             detail="Animal:N",
-        )
+        ).properties(height=80)
 
         dots = alt.Chart(table_data).mark_circle(size=200, opacity=1).encode(
         # dots = alt.Chart(table_data).mark_point(size=100, opacity=1, shape="triangle-right", strokeWidth=6).encode(
