@@ -142,7 +142,7 @@ div.stDataFrame.css-17b7mgn.ebxhiwi0, div.glideDataEditor.wzg2m5k, div.s1jz82f8 
 }
 
 div.scroll-container {
-  display: flex;
+  display: -webkit-inline-box;
   background-color: #0f1116;
   overflow: auto;
   white-space: nowrap;
