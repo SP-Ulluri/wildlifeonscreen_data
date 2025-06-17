@@ -238,7 +238,7 @@ with animal_tab:
                         [value for value in [row["Image 1"], row["Image 2"], row["Image 3"]] if value is not None])]
 
                 for image in selected_images:
-                    path = f"assets.wildlifeonscreen.com/Shows/{show.replace(' ', '%20')}/{episode.replace(' ', '%20')}%20-%20{air_date.replace(' ', '%20')}/{image}.webp"
+                    path = f"https://assets.wildlifeonscreen.com/Shows/{show.replace(' ', '%20')}/{episode.replace(' ', '%20')}%20-%20{air_date.replace(' ', '%20')}/{image}.webp"
                     image_paths.append([show, episode, air_year, path])
 
         if len(image_paths) == 0:
